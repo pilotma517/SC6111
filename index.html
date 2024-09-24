@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Add Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <!-- Add Bootstrap JS and jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/klinecharts/dist/klinecharts.min.js"></script>
+    <title>Exchange Example</title>
+    <style>
+        body {
+            background-color: #f4f4f9; /* Light background for better readability */
+            color: #333; /* Dark text for contrast */
+        }
+
+        .container-fluid {
+            padding: 20px;
+        }
+
+        .chart-container {
+            background-color: #ffffff; /* White background for charts */
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .table-container {
+            background-color: #ffffff; /* White background for tables */
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .form-control {
+            background-color: #fafafa;
+            border: 1px solid #ccc;
+        }
+
+        .form-control:focus {
+            border-color: #66afe9;
+            box-shadow: 0 0 8px rgba(102, 175, 233, 0.6);
+        }
+
+        .btn-lg {
+            width: 100px;
+            padding: 10px 20px;
+        }
+
+        .list-group-item {
+            background-color: #fafafa;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+
+        .list-group-item:hover {
+            background-color: #f1f1f1;
+        }
+
+        .table th, .table td {
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        h5 {
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .trade-table-container {
+            margin-top: 20px;
+        }
+
+        .trade-table th, .trade-table td {
+            background-color: #ffffff;
+            color: #333;
+        }
+
+        .btn-success {
+            background-color: #28a745;
+            border-color: #28a745;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Left Navbar placeholder -->
+            <div class="col-1"></div>
+
+            <div class="col-10">
+                <!-- Chart Section -->
+                <div class="chart-container">
+                    <h5 class="text-center">K-Line Chart</h5>
+                    <div style="height: 400px;" id="chart"></div>
+                </div>
+
+                <!-- Trade Form and Order Lists -->
+                <div class="row">
+                    <div class="col-4">
+                        <div class="table-container">
+                            <form>
+                                <div class="mb-3">
+                                    <input type="text" class="form-control" placeholder="Price" name="price">
+                                </div>
+                                <div class="mb-3">
+                                    <input type="text" class="form-control" placeholder="Amount" name="amount">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Total: <span id="total">0</span></label>
+                                </div>
+                                <div class="d-grid gap-2">
+                                    <button type="button" class="btn btn-success btn-lg" id="buy">BUY</button>
+                                    <button type="button" class="btn btn-danger btn-lg" id="sell">SELL</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="col-4">
+                        <div class="table-container">
+                            <h5>Buy Orders</h5>
+                            <ul id="buyList" class="list-group">
+                                <!-- Buy orders will be appended here -->
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="col-4">
+                        <div class="table-container">
+                            <h5>Sell Orders</h5>
+                            <ul id="sellList" class="list-group">
+                                <!-- Sell orders will be appended here -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trade History Section -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="trade-table-container">
+                            <h5>Trade History</h5>
+                            <table class="table table-striped table-bordered trade-table">
+                                <thead>
+                                    <tr>
+                                        <th>Price</th>
+                                        <th>Amount</th>
+                                        <th>Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tradeHistoryBody">
+                                    <!-- Trade history will be appended here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-1"></div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize K-Line chart
+        var chart = klinecharts.init('chart');
+
+        // Fetch and update K-Line data
+        function fetchAndUpdateKlineData() {
+            $.getJSON('/trade_period', function (data) {
+                chart.applyNewData(data);
+            }).fail(function (jqxhr, textStatus, error) {
+                console.error('Error fetching K-Line data:', textStatus, error);
+            });
+        }
+
+        // Fetch trade history
+        function fetchTradeHistory() {
+            $.getJSON('/trade_list', function (data) {
+                var tradeHistoryBody = $('#tradeHistoryBody');
+                tradeHistoryBody.empty();
+                data.forEach(function (trade) {
+                    tradeHistoryBody.append('<tr><td>' + trade.trade_price + '</td><td>' + trade.trade_amount + '</td><td>' + new Date(trade.trade_timestamp).toLocaleString() + '</td></tr>');
+                });
+            }).fail(function (jqxhr, textStatus, error) {
+                console.error('Error fetching trade history:', textStatus, error);
+            });
+        }
+
+        // Update total value
+        function updateTotal() {
+            var price = parseFloat($('[name="price"]').val());
+            var amount = parseFloat($('[name="amount"]').val());
+            var total = price * amount;
+            $('#total').text(total);
+        }
+
+        $(document).ready(function () {
+            // Set default values
+            $('[name="price"]').val(4979);
+            $('[name="amount"]').val(8);
+            updateTotal();
+
+            $('[name="price"], [name="amount"]').on('change', updateTotal);
+
+            // Buy button
+            $('#buy').on('click', function (e) {
+                e.preventDefault();
+                $.ajax({
+                    url: '/order',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        order_type: 'buy',
+                        price: $('[name="price"]').val(),
+                        amount: $('[name="amount"]').val()
+                    }),
+                    success: function (response) {
+                        console.log('Buy order submitted:', response);
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Error submitting buy order:', error);
+                    }
+                });
+            });
+
+            // Sell button
+            $('#sell').on('click', function (e) {
+                e.preventDefault();
+                $.ajax({
+                    url: '/order',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        order_type: 'sell',
+                        price: $('[name="price"]').val(),
+                        amount: $('[name="amount"]').val()
+                    }),
+                    success: function (response) {
+                        console.log('Sell order submitted:', response);
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Error submitting sell order:', error);
+                    }
+                });
+            });
+
+            // Fetch order lists every 3 seconds
+            setInterval(function () {
+                $.getJSON('/order_list', function (response) {
+                    // Update buy list
+                    $('#buyList').empty();
+                    response.buy_orders.forEach(function (order) {
+                        $('#buyList').append('<li class="list-group-item">' + order.price + ' : ' + order.amount + '</li>');
+                    });
+
+                    // Update sell list
+                    $('#sellList').empty();
+                    response.sell_orders.forEach(function (order) {
+                        $('#sellList').append('<li class="list-group-item">' + order.price + ' : ' + order.amount + '</li>');
+                    });
+                }).fail(function (xhr, status, error) {
+                    console.error('Error fetching order lists:', error);
+                });
+            }, 3000);
+
+            // Initial data fetch
+            fetchAndUpdateKlineData();
+            fetchTradeHistory();
+        });
+    </script>
+</body>
+
+</html>
